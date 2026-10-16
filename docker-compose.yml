@@ -1,0 +1,37 @@
+services:
+  db:
+    # A imagem -ha já traz PostGIS e TimescaleDB.
+    image: timescale/timescaledb-ha:${TIMESCALE_TAG:-pg17}
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # Na imagem -ha o PGDATA fica em /home/postgres/pgdata/data.
+      - pgdata:/home/postgres/pgdata/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  # Migrações: docker compose run --rm dbmate up
+  dbmate:
+    image: ghcr.io/amacneil/dbmate:2
+    profiles: ["ferramentas"]
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable
+      DBMATE_MIGRATIONS_DIR: /sql/migrations
+      DBMATE_SCHEMA_FILE: /sql/schema.sql
+      DBMATE_WAIT: "true"
+    volumes:
+      - ./sql:/sql
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
