@@ -128,11 +128,11 @@ Regras que o código segue e que convém manter:
 
 ### Médio prazo
 
-6. **PE e CE.** `make bronze prata carga UF=PE` já baixa e carrega a malha, mas **a caixa de recorte do Xavier está fixa na PB** (`CAIXA_PB` em `xavier_amostra.py`). Ela deve passar a ser calculada a partir da malha da UF, mais 2 células de margem.
-7. **Demais variáveis do Xavier** (`Tmin`, `Rs`, `RH`, `u2`, `ETo`): é só acrescentar os links em `ARQUIVOS`. O adaptador e o catálogo já as conhecem.
-8. **API FastAPI** (`/v1/...`), conforme o `CLAUDE.md`. As consultas em `sql/verificacao.sql` servem de base.
-9. **Fontes de estação** (INMET primeiro): adaptador para CSV brasileiro (`;`, vírgula decimal, latin-1), carga em `estacao` e `obs_estacao`.
-10. **Normais (1991–2020), anomalias e índices**, conforme as perguntas dos pesquisadores.
+5. **PE e CE.** `make bronze prata carga UF=PE` já baixa e carrega a malha, mas a caixa de recorte do Xavier está fixa na PB (`CAIXA_PB` em `xavier_amostra.py`). Ela deve passar a ser calculada a partir da malha da UF, mais 2 células de margem.
+6. **Demais variáveis do Xavier** (`Tmin`, `Rs`, `RH`, `u2`, `ETo`): é só acrescentar os links em `ARQUIVOS`. O adaptador e o catálogo já as conhecem.
+7. **API FastAPI** (`/v1/...`), conforme o `CLAUDE.md`. As consultas em `sql/verificacao.sql` servem de base.
+8. **Fontes de estação** (INMET primeiro): adaptador para CSV brasileiro (`;`, vírgula decimal, latin-1), carga em `estacao` e `obs_estacao`.
+9. **Normais (1991–2020), anomalias e índices**, conforme as perguntas dos pesquisadores.
 
 ### Dívidas conhecidas
 
