@@ -3,7 +3,7 @@
 Banco de dados, pipeline e (futuramente) API que reúnem dados climáticos do semiárido brasileiro por município.
 
 - **Banco:** PostgreSQL + PostGIS + TimescaleDB, schema versionado com dbmate.
-- **Pipeline:** Python, arquitetura medalhão (bronze → prata → banco).
+- **Pipeline:** Python, arquitetura.
 - **Estado:** protótipo funcional para a Paraíba com uma amostra do BR-DWGD (Xavier).
 
 ## Começar
