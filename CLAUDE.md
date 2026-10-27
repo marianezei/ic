@@ -1,15 +1,14 @@
-# Hub de Dados Climáticos do Semiárido (INSA)
+# Hub de Dados Climáticos do Semiárido
 
 Contexto do projeto para o Claude Code. Consolida as decisões do planejamento e da implementação.
 Estado atual e próximos passos detalhados: `docs/continuidade.md`. Modelo e decisões do banco: `docs/proposta-banco.md`.
 
 ## Projeto
 
-- Projeto de Inteligência Climática Municipal do INSA. Objetivo: reunir todos os dados climáticos disponíveis do **semiárido** numa única plataforma (Hub de dados + API + SIGWEB).
-- Recorte: **semiárido pela delimitação da SUDENE** (não o bioma Caatinga). Começamos por **PB, PE e CE**; o desenho deve escalar para o semiárido inteiro sem mudar o schema.
-- **Primeira entrega: formular o banco de dados**, validado com um protótipo real (Paraíba primeiro).
-- Desenvolvimento local primeiro; depois deploy em servidor do INSA. Tudo precisa ser portátil.
-- A responsável (Mariane) vem de infra/SRE (Docker, Terraform, Ansible, Prometheus) e não tem experiência prévia com dados climáticos: explicar conceitos do domínio quando aparecerem.
+- Projeto de Inteligência Climática Municipal do INSA. Objetivo: reunir todos os dados climáticos disponíveis do semiárido numa única plataforma (Hub de dados + API + SIGWEB).
+- Recorte: semiárido pela delimitação da SUDENE (não o bioma Caatinga). Começamos por **PB, PE e CE**; o desenho deve escalar para o semiárido inteiro sem mudar o schema.
+- Primeira entrega: formular o banco de dados, validado com um protótipo real (Paraíba primeiro).
+- Desenvolvimento local primeiro; depois deploy em servidor do INSA. 
 
 ## Fontes de dados
 
@@ -28,20 +27,21 @@ Estado atual e próximos passos detalhados: `docs/continuidade.md`. Modelo e dec
 - Socioeconômicos: IBGE (malhas, SIDRA, Censo, PIB municipal) e Atlas Brasil/PNUD (IDHM, só 1991/2000/2010 — IDH não é do IBGE).
 - Cada fonte chega num formato diferente.
 
-## Arquitetura (medalhão)
+## Arquitetura 
 
 ```
 Fontes → Bronze → [Padronização] → Prata → [Transformação] → Ouro (banco) → API / SIGWEB
 ```
 
 - **Bronze (camada bruta)**: arquivos originais, imutáveis, uma pasta por fonte e versão, com `manifesto.json` (URL, data do download, hash). Nunca vai para o banco relacional.
-- **Padronização**: um **adaptador por fonte** converte para o formato canônico e resolve nomes de variáveis, unidades, fuso/convenção de dia, códigos de ausência (cuidado: zero de chuva é válido), CSV brasileiro (vírgula decimal, `;`, latin-1), CRS e identificação de municípios. Seguida de **validação automática** (faixas plausíveis, unidades, duplicatas, ausentes) com Pandera ou Great Expectations; o que falha não avança e gera relatório. Nova fonte = novo adaptador, sem tocar no resto.
+- **Padronização**: um adaptador por fonte converte para o formato canônico e resolve nomes de variáveis, unidades, fuso/convenção de dia, códigos de ausência (cuidado: zero de chuva é válido), CSV brasileiro (vírgula decimal, `;`, latin-1), CRS e identificação de municípios. Seguida de validação automática (faixas plausíveis, unidades, duplicatas, ausentes) com Pandera ou Great Expectations; o que falha não avança e gera relatório. Nova fonte = novo adaptador, sem tocar no resto.
 - **Prata (camada padronizada)**: formato canônico, guardado e versionado. Tabular → Parquet em formato longo (`fonte`, `id_local`, `data`, `variavel`, `valor`). Grid → NetCDF seguindo convenções CF, CRS e nomes padronizados.
 - **Transformação**: genérica, só conhece o formato canônico. Recorte, agregação grid → município, normais, anomalias, índices.
-- **Ouro (banco)**: PostgreSQL + **PostGIS** (eixo espaço) + **TimescaleDB** (eixo tempo: hypertables, compressão, continuous aggregates). Licença Timescale OK para auto-hospedagem.
+- **Ouro (banco)**: PostgreSQL + PostGIS (eixo espaço) + TimescaleDB (eixo tempo: hypertables, compressão, continuous aggregates). Licença Timescale OK para auto-hospedagem.
 - **Consumo**: API de dados (FastAPI) e SIGWEB. O grid como imagem/raster é servido pelo GeoServer (WMS/WCS), não pela API REST.
 
-## Modelo de dados
+## Modelo de dados 
+**talvez algumas alterações devam ser realizadas aqui - definir com a equipe**
 
 Dimensões:
 - `fonte` (id, nome, tipo, versao, formato, frequencia, licenca, contato, citacao)
@@ -72,8 +72,8 @@ Decisões:
 ## Regras técnicas do domínio
 
 - Xavier usa EPSG:4326 (WGS 84). Malhas do IBGE usam EPSG:4674 (SIRGAS 2000). Reprojetar antes de cruzar.
-- **Frações de área devem ser calculadas numa projeção de área igual** (usamos `ESRI:102033`, Albers América do Sul, no PostGIS), não em graus.
-- Agregação grid → município por **média ponderada pela área** (municípios pequenos podem ser menores que uma célula). Ferramentas: `xagg`, `exactextract`, `regionmask`.
+- Frações de área devem ser calculadas numa projeção de área igual (usamos `ESRI:102033`, Albers América do Sul, no PostGIS), não em graus.
+- Agregação grid → município por média ponderada pela área (municípios pequenos podem ser menores que uma célula). Ferramentas: `xagg`, `exactextract`, `regionmask`.
 - Recortar o grid com margem de 1–2 células em volta da área de interesse.
 - Validar `celula_municipio`: a soma das frações de cada município deve ser 1.
 - Normal climatológica de referência: 1991–2020.
@@ -132,11 +132,11 @@ Convenções de portabilidade: caminhos e credenciais em variáveis de ambiente;
 
 Depois: PE e CE (a caixa do recorte do Xavier ainda está fixa na PB), demais variáveis, API, estações. Ver `docs/continuidade.md`.
 
-## Questões em aberto com a equipe
+## Questões em aberto 
 
-- Quais perguntas os pesquisadores querem responder (define agregações e índices)?
+- Quais perguntas queremos responder (define agregações e índices)?
 - Qual versão da delimitação do semiárido usar? (provisório: SUDENE 2021, lista IBGE situação 2022)
 - Cobertura mínima para publicar um valor municipal?
 - O SIGWEB precisa do grid ou só de municípios?
 - Inventário das fontes: formato, arquivo de exemplo, frequência, fornecedor, restrições de uso.
-- Servidor do INSA: SO, CPU, RAM, disco, backup, acesso externo, quem administra.
+- Servidor: SO, CPU, RAM, disco, backup, acesso externo, quem administra.
