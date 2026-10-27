@@ -12,8 +12,8 @@ Documento do passo 6 do plano: modelo de dados, decisões e números do protóti
 Um banco único com os dados climáticos do semiárido (delimitação SUDENE), que:
 
 - aceite fontes heterogêneas (grades, estações, indicadores socioeconômicos) sem mudar o schema a cada fonte nova;
-- responda perguntas **por município** (`cod_ibge`), que é como pesquisadores e gestores pensam;
-- guarde a **procedência** de cada número (fonte, versão, arquivo, método);
+- responda perguntas por município (`cod_ibge`);
+- guarde as informações de cada número (fonte, versão, arquivo, método);
 - escale de PB → PB+PE+CE → semiárido inteiro sem redesenho.
 
 ## 2. Tecnologia
@@ -23,7 +23,7 @@ Um banco único com os dados climáticos do semiárido (delimitação SUDENE), q
 | Banco | PostgreSQL 17 | Padrão, maduro, auto-hospedável |
 | Espaço | PostGIS 3.6 | Polígonos de municípios, células da grade, interseções e áreas |
 | Tempo | TimescaleDB 2.30 | Particionamento automático por tempo (hypertables), compressão em colunas, agregados contínuos |
-| Imagem | `timescale/timescaledb-ha:pg17` | Já traz PostGIS + Timescale |
+| Imagem | `timescale/timescaledb-ha:pg17` | traz PostGIS + Timescale |
 | Migrações | dbmate (SQL puro) | Versionado, sem depender de linguagem, `up`/`down` em cada arquivo |
 
 ## 3. Modelo de dados
@@ -143,7 +143,7 @@ O schema completo e atual está em [`sql/schema.sql`](../sql/schema.sql), gerado
 
 | Tabela | Papel |
 |---|---|
-| `fonte` | Uma linha por **versão** de cada dataset (`xavier v_3.2.4`). Versões novas não sobrescrevem as antigas. |
+| `fonte` | Uma linha por versão de cada dataset (`xavier v_3.2.4`). Versões novas não sobrescrevem as antigas. |
 | `variavel` | Catálogo canônico. Unidades em notação UDUNITS/CF (`degC`, `m s-1`). |
 | `mapeamento_variavel` | Como cada fonte nomeia cada variável e como converter: `canonico = valor × fator + deslocamento`. |
 | `municipio` | `cod_ibge` de 7 dígitos é a chave de município em todo o sistema. Polígono em SIRGAS 2000 (EPSG:4674). |
@@ -155,7 +155,7 @@ O schema completo e atual está em [`sql/schema.sql`](../sql/schema.sql), gerado
 
 ### 3.2 Observações (hypertables)
 
-Todas em **formato longo**, `(data, onde, variavel, valor)`, com `fonte_id` e `ingestao_id`:
+Todas em formato longo, `(data, onde, variavel, valor)`, com `fonte_id` e `ingestao_id`:
 
 | Tabela | Granularidade | Chunk | Compressão (segmentação) |
 |---|---|---|---|
@@ -171,7 +171,7 @@ Todas em **formato longo**, `(data, onde, variavel, valor)`, com `fonte_id` e `i
 1. **Formato longo.** Variável nova = linhas novas, não colunas novas. Nenhuma migração para acrescentar `tmin` ou uma variável do ERA5.
 2. **O banco não escolhe a verdade entre fontes.** Xavier e CHIRPS podem dar chuvas diferentes para o mesmo município e dia. Os dois ficam, cada um com seu `fonte_id`, e quem consulta escolhe.
 3. **Rastreabilidade.** Toda observação aponta para uma `ingestao`, que aponta para um arquivo da bronze com hash.
-4. **Arquitetura medalhão.** Bronze (original) → prata (canônico, validado) → ouro (banco). Arquivo bruto nunca entra no banco.
+4. **Arquitetura.** Bronze (original) → prata (canônico, validado) → ouro (banco). Arquivo bruto nunca entra no banco.
 
 ### Tomadas na implementação
 
