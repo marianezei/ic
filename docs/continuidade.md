@@ -118,14 +118,13 @@ Regras que o código segue e que convém manter:
 
 ### Curto prazo
 
-1. **Publicar o repositório num remoto** (GitHub/GitLab do INSA). Hoje ele só existe localmente.
-2. **Medir de verdade (passo 5).** Ler um período da PB, por exemplo 1991–2020, que é a normal climatológica:
+1. **Medir de verdade (passo 5).** Ler um período da PB, por exemplo 1991–2020, que é a normal climatológica:
    - Generalizar `pipeline/bronze/xavier_amostra.py` para aceitar `--inicio/--fim` (hoje é `--data`, um dia só) e escolher o arquivo certo por período (1961–1980, 1981–2000, 2001–2025).
    - Medir tamanho com e sem compressão (`hypertable_compression_stats`), tempo de carga e tempo de consultas típicas (série de um município, média mensal da PB).
    - Atualizar a seção 5 da [proposta](proposta-banco.md) com os números.
-3. **Comparar com o DataClimaBR** (validação externa): algumas datas e municípios, valores de `clima_municipio` contra os do DataClimaBR (Earth Engine, exige conta Google).
-4. **Fixar versões:** tag exata da imagem `timescaledb-ha` no `.env`, versão do dbmate, e um `requirements.lock` (`pip freeze`).
-5. **Testes automatizados** (pytest) para o adaptador, a validação e as frações. Hoje a verificação é manual (`make verificar`).
+2. **Comparar com o DataClimaBR** (validação externa): algumas datas e municípios, valores de `clima_municipio` contra os do DataClimaBR (Earth Engine, exige conta Google).
+3. **Fixar versões:** tag exata da imagem `timescaledb-ha` no `.env`, versão do dbmate, e um `requirements.lock` (`pip freeze`).
+4. **Testes automatizados** (pytest) para o adaptador, a validação e as frações. Hoje a verificação é manual (`make verificar`).
 
 ### Médio prazo
 
