@@ -1,3 +1,4 @@
+# Leitura de NetCDF (local e remoto via HTTP Range)
 xarray
 h5netcdf
 h5py
@@ -7,3 +8,19 @@ aiohttp
 requests
 numpy
 pandas
+pyarrow
+
+# Geoespacial (malhas do IBGE)
+geopandas
+pyogrio
+shapely
+pyproj
+
+# Banco
+psycopg[binary]
+
+# Validação
+pandera
+
+# Planilhas (lista do semiárido)
+openpyxl

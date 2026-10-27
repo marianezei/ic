@@ -1,6 +1,7 @@
 # Hub de Dados Climáticos do Semiárido (INSA)
 
-Contexto do projeto para o Claude Code. Consolida as decisões tomadas na fase de planejamento.
+Contexto do projeto para o Claude Code. Consolida as decisões do planejamento e da implementação.
+Estado atual e próximos passos detalhados: `docs/continuidade.md`. Modelo e decisões do banco: `docs/proposta-banco.md`.
 
 ## Projeto
 
@@ -45,9 +46,9 @@ Fontes → Bronze → [Padronização] → Prata → [Transformação] → Ouro 
 Dimensões:
 - `fonte` (id, nome, tipo, versao, formato, frequencia, licenca, contato, citacao)
 - `variavel` (codigo PK, nome, unidade)
-- `mapeamento_variavel` (fonte, nome na fonte → variavel canônica, fator de conversão)
-- `municipio` (cod_ibge PK, 7 dígitos; nome, uf, semiarido, poligono)
-- `celula` (id, quadrado de 0,1°)
+- `mapeamento_variavel` (fonte, nome na fonte → variavel canônica, unidade na fonte, fator, deslocamento)
+- `municipio` (cod_ibge PK, 7 dígitos; nome, uf, poligono) — pertencer ao semiárido é um `recorte`, não uma coluna
+- `celula` (id, grade, lon, lat, geom) — `grade` separa grades diferentes (ex.: `xavier_0.1`); entra a grade inteira, inclusive células sem dado
 - `estacao` (id, fonte_id, cod_ibge, ponto)
 - `celula_municipio` (celula_id, cod_ibge, fracao_area) — ponte grid → município
 - `recorte` / `municipio_recorte` — recortes como dado (semiárido SUDENE com ano da delimitação, UF etc.), não fixos no código
@@ -56,8 +57,8 @@ Dimensões:
 Observações (formato longo, `fonte_id` e `ingestao_id` em todas):
 - `obs_celula` (celula_id, data, variavel, valor)
 - `obs_estacao` (estacao_id, data, variavel, valor, qualidade)
-- `clima_municipio` (cod_ibge, data, variavel, valor) — calculada a partir de `obs_celula` + `celula_municipio`
-- agregados mensais/anuais via continuous aggregates
+- `clima_municipio` (cod_ibge, data, variavel, valor, cobertura) — média ponderada de `obs_celula` + `celula_municipio`, só sobre células com dado; `cobertura` = fração da área do município com dado
+- agregados `clima_municipio_mensal` / `_anual` (continuous aggregates com soma, média, mín., máx., n_dias), atualizados pelo pipeline após cada carga
 - `indicador_socio` (cod_ibge, indicador, ano, valor, fonte_id)
 
 Decisões:
@@ -65,15 +66,25 @@ Decisões:
 - O banco nunca escolhe um "valor verdadeiro" entre fontes; quem consulta escolhe a fonte.
 - Toda observação é rastreável até o arquivo de origem (`ingestao_id`).
 - `cod_ibge` é o identificador de município em todo o sistema.
+- Valor ausente não vira linha; zero de chuva vira. `valor` é `real` (float4).
+- Validação acontece no adaptador, antes de gravar na prata. Carga idempotente por hash do arquivo da bronze.
 
 ## Regras técnicas do domínio
 
 - Xavier usa EPSG:4326 (WGS 84). Malhas do IBGE usam EPSG:4674 (SIRGAS 2000). Reprojetar antes de cruzar.
-- **Frações de área devem ser calculadas numa projeção de área igual** (ex.: Albers para América do Sul), não em graus.
+- **Frações de área devem ser calculadas numa projeção de área igual** (usamos `ESRI:102033`, Albers América do Sul, no PostGIS), não em graus.
 - Agregação grid → município por **média ponderada pela área** (municípios pequenos podem ser menores que uma célula). Ferramentas: `xagg`, `exactextract`, `regionmask`.
 - Recortar o grid com margem de 1–2 células em volta da área de interesse.
 - Validar `celula_municipio`: a soma das frações de cada município deve ser 1.
 - Normal climatológica de referência: 1991–2020.
+
+## Achados sobre o BR-DWGD (Xavier)
+
+- Um NetCDF por variável e período (1961–1980, 1981–2000, 2001–2025), Brasil inteiro (393×391), 1–2,6 GB cada. Links do Dropbox em `pipeline/bronze/xavier_amostra.py`.
+- `int16` com `scale_factor`/`add_offset`; ausente = `-32768`; blocos de 1 dia × Brasil, sem compressão → dá para ler recortes por HTTP Range (~300 KB/dia/variável).
+- Tempo em horas desde 1961-01-01; coordenadas `float32` dos centros (arredondar para 2 casas).
+- Unidade da temperatura escrita `"Celcius degrees"`; atributo `title` diz 1961-2020 (desatualizado).
+- Células com centro no mar são ausentes, e a grade termina em −34,8° de longitude: municípios do litoral têm `cobertura` < 1.
 
 ## API (planejada)
 
@@ -88,17 +99,22 @@ Decisões:
 ## Estrutura do repositório
 
 ```
-hub-clima/
+.
 ├── docker-compose.yml      # PostgreSQL + PostGIS + TimescaleDB (imagem timescale/timescaledb-ha)
 ├── .env.example            # credenciais, portas, caminhos (.env real fora do git)
 ├── data/                   # fora do git
 │   ├── bronze/xavier/v_3.2.4/
 │   └── prata/xavier/
-├── sql/migrations/         # migrações numeradas (dbmate ou Alembic)
+├── Makefile                # make pipeline / verificar / psql ...
+├── sql/migrations/         # migrações numeradas (dbmate)
+├── sql/verificacao.sql     # consultas de conferência
 ├── pipeline/
-│   ├── adaptadores/
+│   ├── comum.py
+│   ├── bronze/             # download (xavier_amostra, ibge)
+│   ├── adaptadores/        # bronze -> prata, um por fonte
 │   ├── validacao/
-│   └── transformacao/
+│   ├── carga/              # prata -> banco
+│   └── transformacao/      # celula_municipio, clima_municipio
 ├── notebooks/
 └── docs/
 ```
@@ -107,17 +123,20 @@ Convenções de portabilidade: caminhos e credenciais em variáveis de ambiente;
 
 ## Próximos passos
 
-1. Criar o esqueleto do repositório, `docker-compose.yml`, `.env.example` e a migração inicial (extensões + dimensões).
-2. Baixar `pr` e `Tmax` do Xavier para `data/bronze/xavier/v_3.2.4/` com manifesto; explorar em notebook (dimensões, unidades, valor de ausência, datas, grade, mapa de um dia na PB).
-3. Carregar `municipio` (malha IBGE da PB + lista do semiárido da SUDENE) e `celula` (grade do NetCDF recortada com margem).
-4. Calcular `celula_municipio`, carregar `pr` e `tmax` da PB, gerar `clima_municipio`, comparar com o DataClimaBR.
-5. Medir tamanho, tempo de carga e de consulta (com e sem compressão) e extrapolar para PB+PE+CE e semiárido inteiro.
-6. Escrever o documento de proposta do banco (modelo ER, decisões, números do protótipo).
+1. ✅ Esqueleto do repositório, `docker-compose.yml`, `.env.example` e migrações.
+2. ✅ (amostra) `pr` e `Tmax` do Xavier na bronze com manifesto — 1 dia (2024-04-15), PB, via HTTP Range.
+3. ✅ `municipio` (malha IBGE 2025 da PB), recortes (`uf_pb`, `semiarido_sudene_2021`) e `celula`.
+4. ✅ `celula_municipio`, `obs_celula`, `clima_municipio` e agregados. ⬜ Falta comparar com o DataClimaBR.
+5. ⬜ Medir tamanho, tempo de carga e de consulta (com e sem compressão) com um período real e extrapolar.
+6. ✅ `docs/proposta-banco.md` (atualizar com os números do passo 5).
+
+Depois: PE e CE (a caixa do recorte do Xavier ainda está fixa na PB), demais variáveis, API, estações. Ver `docs/continuidade.md`.
 
 ## Questões em aberto com a equipe
 
 - Quais perguntas os pesquisadores querem responder (define agregações e índices)?
-- Qual versão da delimitação do semiárido usar?
+- Qual versão da delimitação do semiárido usar? (provisório: SUDENE 2021, lista IBGE situação 2022)
+- Cobertura mínima para publicar um valor municipal?
 - O SIGWEB precisa do grid ou só de municípios?
 - Inventário das fontes: formato, arquivo de exemplo, frequência, fornecedor, restrições de uso.
 - Servidor do INSA: SO, CPU, RAM, disco, backup, acesso externo, quem administra.

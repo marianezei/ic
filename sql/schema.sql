@@ -62,6 +62,128 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
+-- Name: clima_municipio; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.clima_municipio (
+    data date NOT NULL,
+    cod_ibge character(7) NOT NULL,
+    variavel text NOT NULL,
+    valor real NOT NULL,
+    cobertura real NOT NULL,
+    fonte_id integer NOT NULL,
+    ingestao_id integer NOT NULL,
+    CONSTRAINT clima_municipio_cobertura_check CHECK (((cobertura > (0)::double precision) AND (cobertura <= (1.0001)::double precision)))
+);
+
+
+--
+-- Name: _direct_view_4; Type: VIEW; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE VIEW _timescaledb_internal._direct_view_4 AS
+ SELECT public.time_bucket('1 mon'::interval, data) AS mes,
+    fonte_id,
+    cod_ibge,
+    variavel,
+    sum(valor) AS soma,
+    avg(valor) AS media,
+    min(valor) AS minimo,
+    max(valor) AS maximo,
+    count(*) AS n_dias
+   FROM public.clima_municipio
+  GROUP BY (public.time_bucket('1 mon'::interval, data)), fonte_id, cod_ibge, variavel;
+
+
+--
+-- Name: _direct_view_5; Type: VIEW; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE VIEW _timescaledb_internal._direct_view_5 AS
+ SELECT public.time_bucket('1 year'::interval, data) AS ano,
+    fonte_id,
+    cod_ibge,
+    variavel,
+    sum(valor) AS soma,
+    avg(valor) AS media,
+    min(valor) AS minimo,
+    max(valor) AS maximo,
+    count(*) AS n_dias
+   FROM public.clima_municipio
+  GROUP BY (public.time_bucket('1 year'::interval, data)), fonte_id, cod_ibge, variavel;
+
+
+--
+-- Name: _materialized_hypertable_4; Type: TABLE; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE TABLE _timescaledb_internal._materialized_hypertable_4 (
+    mes date NOT NULL,
+    fonte_id integer,
+    cod_ibge character(7),
+    variavel text,
+    soma real,
+    media double precision,
+    minimo real,
+    maximo real,
+    n_dias bigint
+);
+
+
+--
+-- Name: _materialized_hypertable_5; Type: TABLE; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE TABLE _timescaledb_internal._materialized_hypertable_5 (
+    ano date NOT NULL,
+    fonte_id integer,
+    cod_ibge character(7),
+    variavel text,
+    soma real,
+    media double precision,
+    minimo real,
+    maximo real,
+    n_dias bigint
+);
+
+
+--
+-- Name: _partial_view_4; Type: VIEW; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE VIEW _timescaledb_internal._partial_view_4 AS
+ SELECT public.time_bucket('1 mon'::interval, data) AS mes,
+    fonte_id,
+    cod_ibge,
+    variavel,
+    sum(valor) AS soma,
+    avg(valor) AS media,
+    min(valor) AS minimo,
+    max(valor) AS maximo,
+    count(*) AS n_dias
+   FROM public.clima_municipio
+  GROUP BY (public.time_bucket('1 mon'::interval, data)), fonte_id, cod_ibge, variavel;
+
+
+--
+-- Name: _partial_view_5; Type: VIEW; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE VIEW _timescaledb_internal._partial_view_5 AS
+ SELECT public.time_bucket('1 year'::interval, data) AS ano,
+    fonte_id,
+    cod_ibge,
+    variavel,
+    sum(valor) AS soma,
+    avg(valor) AS media,
+    min(valor) AS minimo,
+    max(valor) AS maximo,
+    count(*) AS n_dias
+   FROM public.clima_municipio
+  GROUP BY (public.time_bucket('1 year'::interval, data)), fonte_id, cod_ibge, variavel;
+
+
+--
 -- Name: celula; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -98,6 +220,40 @@ CREATE TABLE public.celula_municipio (
     fracao_area double precision NOT NULL,
     CONSTRAINT celula_municipio_fracao_area_check CHECK (((fracao_area > (0)::double precision) AND (fracao_area <= (1)::double precision)))
 );
+
+
+--
+-- Name: clima_municipio_anual; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.clima_municipio_anual AS
+ SELECT ano,
+    fonte_id,
+    cod_ibge,
+    variavel,
+    soma,
+    media,
+    minimo,
+    maximo,
+    n_dias
+   FROM _timescaledb_internal._materialized_hypertable_5;
+
+
+--
+-- Name: clima_municipio_mensal; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.clima_municipio_mensal AS
+ SELECT mes,
+    fonte_id,
+    cod_ibge,
+    variavel,
+    soma,
+    media,
+    minimo,
+    maximo,
+    n_dias
+   FROM _timescaledb_internal._materialized_hypertable_4;
 
 
 --
@@ -160,6 +316,20 @@ ALTER TABLE public.fonte ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
     NO MINVALUE
     NO MAXVALUE
     CACHE 1
+);
+
+
+--
+-- Name: indicador_socio; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.indicador_socio (
+    cod_ibge character(7) NOT NULL,
+    indicador text NOT NULL,
+    ano smallint NOT NULL,
+    valor double precision NOT NULL,
+    unidade text,
+    fonte_id integer NOT NULL
 );
 
 
@@ -229,6 +399,35 @@ CREATE TABLE public.municipio (
 CREATE TABLE public.municipio_recorte (
     recorte_id integer NOT NULL,
     cod_ibge character(7) NOT NULL
+);
+
+
+--
+-- Name: obs_celula; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.obs_celula (
+    data date NOT NULL,
+    celula_id integer NOT NULL,
+    variavel text NOT NULL,
+    valor real NOT NULL,
+    fonte_id integer NOT NULL,
+    ingestao_id integer NOT NULL
+);
+
+
+--
+-- Name: obs_estacao; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.obs_estacao (
+    data date NOT NULL,
+    estacao_id integer NOT NULL,
+    variavel text NOT NULL,
+    valor real NOT NULL,
+    qualidade text,
+    fonte_id integer NOT NULL,
+    ingestao_id integer NOT NULL
 );
 
 
@@ -321,6 +520,14 @@ ALTER TABLE ONLY public.celula
 
 
 --
+-- Name: clima_municipio clima_municipio_fonte_id_cod_ibge_variavel_data_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clima_municipio
+    ADD CONSTRAINT clima_municipio_fonte_id_cod_ibge_variavel_data_key UNIQUE (fonte_id, cod_ibge, variavel, data);
+
+
+--
 -- Name: estacao estacao_fonte_id_codigo_na_fonte_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -350,6 +557,14 @@ ALTER TABLE ONLY public.fonte
 
 ALTER TABLE ONLY public.fonte
     ADD CONSTRAINT fonte_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: indicador_socio indicador_socio_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.indicador_socio
+    ADD CONSTRAINT indicador_socio_pkey PRIMARY KEY (fonte_id, cod_ibge, indicador, ano);
 
 
 --
@@ -385,6 +600,22 @@ ALTER TABLE ONLY public.municipio_recorte
 
 
 --
+-- Name: obs_celula obs_celula_fonte_id_celula_id_variavel_data_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.obs_celula
+    ADD CONSTRAINT obs_celula_fonte_id_celula_id_variavel_data_key UNIQUE (fonte_id, celula_id, variavel, data);
+
+
+--
+-- Name: obs_estacao obs_estacao_fonte_id_estacao_id_variavel_data_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.obs_estacao
+    ADD CONSTRAINT obs_estacao_fonte_id_estacao_id_variavel_data_key UNIQUE (fonte_id, estacao_id, variavel, data);
+
+
+--
 -- Name: recorte recorte_codigo_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -417,6 +648,62 @@ ALTER TABLE ONLY public.variavel
 
 
 --
+-- Name: _materialized_hypertable_4_cod_ibge_mes_idx; Type: INDEX; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE INDEX _materialized_hypertable_4_cod_ibge_mes_idx ON _timescaledb_internal._materialized_hypertable_4 USING btree (cod_ibge, mes DESC);
+
+
+--
+-- Name: _materialized_hypertable_4_fonte_id_mes_idx; Type: INDEX; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE INDEX _materialized_hypertable_4_fonte_id_mes_idx ON _timescaledb_internal._materialized_hypertable_4 USING btree (fonte_id, mes DESC);
+
+
+--
+-- Name: _materialized_hypertable_4_mes_idx; Type: INDEX; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE INDEX _materialized_hypertable_4_mes_idx ON _timescaledb_internal._materialized_hypertable_4 USING btree (mes DESC);
+
+
+--
+-- Name: _materialized_hypertable_4_variavel_mes_idx; Type: INDEX; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE INDEX _materialized_hypertable_4_variavel_mes_idx ON _timescaledb_internal._materialized_hypertable_4 USING btree (variavel, mes DESC);
+
+
+--
+-- Name: _materialized_hypertable_5_ano_idx; Type: INDEX; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE INDEX _materialized_hypertable_5_ano_idx ON _timescaledb_internal._materialized_hypertable_5 USING btree (ano DESC);
+
+
+--
+-- Name: _materialized_hypertable_5_cod_ibge_ano_idx; Type: INDEX; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE INDEX _materialized_hypertable_5_cod_ibge_ano_idx ON _timescaledb_internal._materialized_hypertable_5 USING btree (cod_ibge, ano DESC);
+
+
+--
+-- Name: _materialized_hypertable_5_fonte_id_ano_idx; Type: INDEX; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE INDEX _materialized_hypertable_5_fonte_id_ano_idx ON _timescaledb_internal._materialized_hypertable_5 USING btree (fonte_id, ano DESC);
+
+
+--
+-- Name: _materialized_hypertable_5_variavel_ano_idx; Type: INDEX; Schema: _timescaledb_internal; Owner: -
+--
+
+CREATE INDEX _materialized_hypertable_5_variavel_ano_idx ON _timescaledb_internal._materialized_hypertable_5 USING btree (variavel, ano DESC);
+
+
+--
 -- Name: celula_geom_gix; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -428,6 +715,13 @@ CREATE INDEX celula_geom_gix ON public.celula USING gist (geom);
 --
 
 CREATE INDEX celula_municipio_cod_ibge_idx ON public.celula_municipio USING btree (cod_ibge);
+
+
+--
+-- Name: clima_municipio_data_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clima_municipio_data_idx ON public.clima_municipio USING btree (data DESC);
 
 
 --
@@ -466,6 +760,20 @@ CREATE INDEX municipio_uf_idx ON public.municipio USING btree (uf);
 
 
 --
+-- Name: obs_celula_data_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX obs_celula_data_idx ON public.obs_celula USING btree (data DESC);
+
+
+--
+-- Name: obs_estacao_data_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX obs_estacao_data_idx ON public.obs_estacao USING btree (data DESC);
+
+
+--
 -- Name: celula_municipio celula_municipio_celula_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -482,6 +790,38 @@ ALTER TABLE ONLY public.celula_municipio
 
 
 --
+-- Name: clima_municipio clima_municipio_cod_ibge_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clima_municipio
+    ADD CONSTRAINT clima_municipio_cod_ibge_fkey FOREIGN KEY (cod_ibge) REFERENCES public.municipio(cod_ibge);
+
+
+--
+-- Name: clima_municipio clima_municipio_fonte_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clima_municipio
+    ADD CONSTRAINT clima_municipio_fonte_id_fkey FOREIGN KEY (fonte_id) REFERENCES public.fonte(id);
+
+
+--
+-- Name: clima_municipio clima_municipio_ingestao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clima_municipio
+    ADD CONSTRAINT clima_municipio_ingestao_id_fkey FOREIGN KEY (ingestao_id) REFERENCES public.ingestao(id);
+
+
+--
+-- Name: clima_municipio clima_municipio_variavel_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.clima_municipio
+    ADD CONSTRAINT clima_municipio_variavel_fkey FOREIGN KEY (variavel) REFERENCES public.variavel(codigo);
+
+
+--
 -- Name: estacao estacao_cod_ibge_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -495,6 +835,22 @@ ALTER TABLE ONLY public.estacao
 
 ALTER TABLE ONLY public.estacao
     ADD CONSTRAINT estacao_fonte_id_fkey FOREIGN KEY (fonte_id) REFERENCES public.fonte(id);
+
+
+--
+-- Name: indicador_socio indicador_socio_cod_ibge_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.indicador_socio
+    ADD CONSTRAINT indicador_socio_cod_ibge_fkey FOREIGN KEY (cod_ibge) REFERENCES public.municipio(cod_ibge);
+
+
+--
+-- Name: indicador_socio indicador_socio_fonte_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.indicador_socio
+    ADD CONSTRAINT indicador_socio_fonte_id_fkey FOREIGN KEY (fonte_id) REFERENCES public.fonte(id);
 
 
 --
@@ -538,6 +894,70 @@ ALTER TABLE ONLY public.municipio_recorte
 
 
 --
+-- Name: obs_celula obs_celula_celula_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.obs_celula
+    ADD CONSTRAINT obs_celula_celula_id_fkey FOREIGN KEY (celula_id) REFERENCES public.celula(id);
+
+
+--
+-- Name: obs_celula obs_celula_fonte_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.obs_celula
+    ADD CONSTRAINT obs_celula_fonte_id_fkey FOREIGN KEY (fonte_id) REFERENCES public.fonte(id);
+
+
+--
+-- Name: obs_celula obs_celula_ingestao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.obs_celula
+    ADD CONSTRAINT obs_celula_ingestao_id_fkey FOREIGN KEY (ingestao_id) REFERENCES public.ingestao(id);
+
+
+--
+-- Name: obs_celula obs_celula_variavel_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.obs_celula
+    ADD CONSTRAINT obs_celula_variavel_fkey FOREIGN KEY (variavel) REFERENCES public.variavel(codigo);
+
+
+--
+-- Name: obs_estacao obs_estacao_estacao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.obs_estacao
+    ADD CONSTRAINT obs_estacao_estacao_id_fkey FOREIGN KEY (estacao_id) REFERENCES public.estacao(id);
+
+
+--
+-- Name: obs_estacao obs_estacao_fonte_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.obs_estacao
+    ADD CONSTRAINT obs_estacao_fonte_id_fkey FOREIGN KEY (fonte_id) REFERENCES public.fonte(id);
+
+
+--
+-- Name: obs_estacao obs_estacao_ingestao_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.obs_estacao
+    ADD CONSTRAINT obs_estacao_ingestao_id_fkey FOREIGN KEY (ingestao_id) REFERENCES public.ingestao(id);
+
+
+--
+-- Name: obs_estacao obs_estacao_variavel_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.obs_estacao
+    ADD CONSTRAINT obs_estacao_variavel_fkey FOREIGN KEY (variavel) REFERENCES public.variavel(codigo);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
@@ -550,4 +970,6 @@ ALTER TABLE ONLY public.municipio_recorte
 
 INSERT INTO public.schema_migrations (version) VALUES
     ('20261014120000'),
-    ('20261014120100');
+    ('20261014120100'),
+    ('20261027120000'),
+    ('20261027120100');
